@@ -29,8 +29,8 @@ Each value is addressed by an MP‑Bus **pool id** with a fixed‑point **scalin
 | Part | Notes |
 |---|---|
 | **ESP32** | Any ESP32 variant (classic, S2, S3, C3, …) with a **free hardware SPI bus** and one spare GPIO. ~Any ESPHome‑supported ESP32 board works. |
-| **PN532 module** | The common red "PN532 V3" board (Elechouse / HiLetgo / ShillehTek) or Adafruit's breakout. **Set it to SPI mode** (see below). |
-| **Wires** | 5 jumpers (4 SPI + 3V3/GND). Keep them short. |
+| **PN532 module** | The common red "PN532 V3" board (Elechouse / HiLetgo / ShillehTek) or Adafruit's breakout. **Set it to SPI mode** (see below). https://a.co/d/01CR2krF |
+| **Wires** | 5 jumpers (4 SPI + 3V3/GND). Keep them short. the amazon NFC module  kit include jumpers |
 
 **PN532 → SPI mode:** the red boards select interface with two DIP switches. SPI is usually **SW1 = OFF, SW2 = ON** (silk sometimes labels it `0 / 1`). I²C is intentionally **not** used here — the ESP32 I²C peripheral has clock‑stretching issues with the PN532 that cause lock‑ups under continuous polling; SPI is reliable.
 
