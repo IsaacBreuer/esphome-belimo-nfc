@@ -1,0 +1,136 @@
+# Example ESPHome configuration for the Belimo SBD / EWC SBD2 smart bypass damper over NFC.
+#
+# Hardware: any ESP32 with a free hardware SPI bus + a PN532 module set to SPI mode,
+# with the PN532 antenna held on the damper's NFC logo (damper powered with 24 V).
+#
+# Pins below are for an ESP32-S3; change them to any valid pins for your board.
+# Only the three SPI data pins have constraints (see README). The CS pin is any free GPIO.
+
+esphome:
+  name: belimo-sbd2
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+# ---- Option A: use the component straight from GitHub (recommended) ----
+external_components:
+  - source: github://isaacbreuer/esphome-belimo-nfc@main
+    components: [belimo_sbd]
+
+# ---- Option B: use a local copy instead (see README) ----
+# external_components:
+#   - source:
+#       type: local
+#       path: components
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  output_power: 8.5dB   # some clone ESP32-S3 boards need reduced TX power to associate
+
+api:
+logger:
+  level: DEBUG          # drop to INFO for everyday use
+  logs:
+    pn532.mifare_classic: NONE
+    nfc: NONE
+    component: ERROR
+
+spi:
+  clk_pin: GPIO12       # SCK   - must be an SPI-capable / output GPIO
+  miso_pin: GPIO13      # MISO  - must be an SPI-capable / input GPIO
+  mosi_pin: GPIO11      # MOSI  - must be an SPI-capable / output GPIO
+
+pn532_spi:
+  id: my_pn532
+  cs_pin: GPIO10        # CS/SS - any free GPIO
+  update_interval: never   # the belimo_sbd component drives the reader itself
+
+belimo_sbd:
+  id: damper
+  pn532_id: my_pn532
+  update_interval: 3s        # a full sweep takes ~5s, so this effectively polls back-to-back
+  protocol_version: 0        # 0 = auto-detect (recommended); 2 or 3 to force
+  dump_memory: false         # true logs a one-time read-only dump of the chip memory
+  stale_timeout: 20s         # hold last values this long before sensors go "unknown"
+  sensors:
+    # pool_id and scale come from the device profile (see README).
+    - pool_id: 9             # SpPos - damper position
+      scale: 0.1
+      name: "Damper Position"
+      unit_of_measurement: "%"
+      accuracy_decimals: 1
+      state_class: measurement
+    - pool_id: 11            # DP_FilterOut - measured static pressure
+      scale: 0.0001
+      name: "Static Pressure"
+      unit_of_measurement: '"wc'
+      accuracy_decimals: 3
+      state_class: measurement
+    - pool_id: 10            # DpSp - active pressure setpoint
+      scale: 0.0001
+      name: "Pressure Setpoint"
+      unit_of_measurement: '"wc'
+      accuracy_decimals: 2
+    - pool_id: 24            # FanOnTime
+      scale: 1
+      name: "Fan Run Time"
+      unit_of_measurement: h
+      accuracy_decimals: 0
+      state_class: total_increasing
+    - pool_id: 25            # BypassTime
+      scale: 1
+      name: "Bypass Active Time"
+      unit_of_measurement: h
+      accuracy_decimals: 0
+      state_class: total_increasing
+    - pool_id: 8             # SpSelect - setpoint preset index (read-back of writes)
+      scale: 1
+      name: "Setpoint Preset"
+      accuracy_decimals: 0
+      on_value:
+        # Keep the dropdown below in sync with the damper's real value. publish_state() only
+        # updates the shown option - it does NOT run set_action - so there is no write-back loop.
+        - lambda: |-
+            static const char *const OPTS[12] = {
+              "Default / Learned", "0.25\" wc", "0.30\" wc", "0.35\" wc", "0.40\" wc",
+              "0.45\" wc", "0.50\" wc", "0.55\" wc", "0.60\" wc", "0.65\" wc",
+              "0.70\" wc", "0.75\" wc"};
+            int i = (int) lroundf(x);
+            if (i >= 0 && i < 12) id(setpoint_select).publish_state(OPTS[i]);
+
+# Setpoint control: a dropdown of exactly the 12 allowed presets. Selecting one writes SpSelect
+# (pool 8) and nothing else. An option not in this list is rejected by ESPHome before the lambda
+# runs, and the firmware also rejects any index outside 0..11 - so a stray value is never sent.
+select:
+  - platform: template
+    name: "Damper Setpoint"
+    id: setpoint_select
+    icon: "mdi:gauge"
+    optimistic: true
+    options:
+      - 'Default / Learned'
+      - '0.25" wc'
+      - '0.30" wc'
+      - '0.35" wc'
+      - '0.40" wc'
+      - '0.45" wc'
+      - '0.50" wc'
+      - '0.55" wc'
+      - '0.60" wc'
+      - '0.65" wc'
+      - '0.70" wc'
+      - '0.75" wc'
+    initial_option: '0.60" wc'
+    set_action:
+      - lambda: |-
+          static const char *const OPTS[12] = {
+            "Default / Learned", "0.25\" wc", "0.30\" wc", "0.35\" wc", "0.40\" wc",
+            "0.45\" wc", "0.50\" wc", "0.55\" wc", "0.60\" wc", "0.65\" wc",
+            "0.70\" wc", "0.75\" wc"};
+          for (uint8_t i = 0; i < 12; i++) {
+            if (x == OPTS[i]) { id(damper).request_setpoint_select(i); return; }
+          }
+          ESP_LOGW("setpoint_select", "Option '%s' is not an allowed preset - not sent", x.c_str());
