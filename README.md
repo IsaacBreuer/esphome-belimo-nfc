@@ -71,7 +71,7 @@ Add this to your device YAML and ESPHome pulls the component automatically:
 
 ```yaml
 external_components:
-  - source: github://isaacbreuer/esphome-belimo-nfc@main
+  - source: github://ibtinker/esphome-belimo-nfc@main
     components: [belimo_sbd]
 ```
 
