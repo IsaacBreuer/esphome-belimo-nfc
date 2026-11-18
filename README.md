@@ -220,7 +220,7 @@ Short version: decompile the Belimo Assistant Android app, read how it builds it
 ## Credits
 
 - **Protocol reverse‑engineering, decoding, and the ESPHome component** were done by **Claude** (Anthropic) — app decompilation and analysis, the NTAG I²C pass‑through / MP‑Bus tunnel decode, CRC and framing, and the full `belimo_sbd` implementation and debugging.
-- **Hardware, on‑site testing, and the whole project direction** by [@isaacbreuer](https://github.com/isaacbreuer).
+- **Hardware, on‑site testing, and the whole project direction** by [@ibtinker](https://github.com/ibtinker).
 - Built on [ESPHome](https://esphome.io/)'s `pn532` component. Reverse engineering used [blutter](https://github.com/worawit/blutter) and [NXP TagInfo](https://www.nxp.com/products/nxp-product-information/nxp-mobile-technologies/mifare/taginfo-application:TAGINFO).
 
 A collaboration between a human who wouldn't let "it can't be done" stand and an AI that read the app until it could. 🤝
